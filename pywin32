@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+requirements.txt
+
+altgraph==0.16.1
+future==0.17.1
+macholib==1.11
+pefile==2019.4.18
+PyInstaller==3.4
+pywin32==224
+pywin32-ctypes==0.2.0
+
+"""
+
+import sys
+
+# 备份默认的标准输出和错误输出
+standard_output = sys.stdout
+standard_error = sys.stderr
+
+sys.stdout = open('output.log', "w+")
+sys.stderr = open('error.log', 'w+')
+
+import os
+import json
+import socket
+import traceback
+import subprocess
+import urllib.request
+from time import sleep
+from winreg import *
+
+import win32com.client
+import win32api, win32gui, win32con, win32ui, win32com
+
+
+# 通过句柄获取文本值
+def get_text(hld):
+    # label = 'License Management'  # 主窗口名
+    # # 找到父窗口
+    # hld = win32gui.FindWindow('#32770', label)
+
+    # 获取窗口文本不含截尾空字符的长度
+    # 参数：窗口句柄； 消息类型； 参数WParam； 参数IParam
+    bufSize = win32api.SendMessage(hld, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
+    # 利用api生成Buffer
+    strBuf = win32gui.PyMakeBuffer(bufSize)
+
+    print(strBuf)
+    # 发送消息获取文本内容
+    # 参数：窗口句柄； 消息类型；文本大小； 存储位置
+    length = win32gui.SendMessage(hld, win32con.WM_GETTEXT, bufSize, strBuf)
+    # 反向内容，转为字符串
+    # text = str(strBuf[:-1])
+
+    address, length = win32gui.PyGetBufferAddressAndLen(strBuf)
+    text = win32gui.PyGetString(address, length)
+    print('text: ', text)
+    return text
+
+
+def get_UV4_root_path():
+    # aReg = ConnectRegistry(None, HKEY_CLASSES_ROOT)
+    aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
+    # aReg = ConnectRegistry(None, HKEY_USERS)
+
+    aKey = OpenKey(aReg, r"SYSTEM\ControlSet001\Control\Session Manager\Environment")
+    # aKey = OpenKey(aReg, r"S-1-5-21-147214757-305610072-1517763936-6109270\Software\Microsoft\Windows\CurrentVersion\Run")
+    # aKey = OpenKey(aReg, r"Unity scene file")
+
+    # value = QueryValueEx(aKey, "YodaoDict")
+    value = QueryValueEx(aKey, "UV4")
+
+    substring = '\\'.join([value[0], 'UV4.exe'])
+    print(substring)
+    return substring
+
+
+def get_host_ip():
+    """
+    查询本机ip地址
+    :return: ip
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+
+    return ip
+
+
+# 通过句柄获取对应控件的文本值
+def get_cid(hld):
+    # label = 'License Management'  # 主窗口名
+    # # 找到父窗口
+    # hld = win32gui.FindWindow('#32770', label)
+
+    # 获取窗口文本不含截尾空字符的长度
+    # 参数：窗口句柄； 消息类型； 参数WParam； 参数IParam
+    bufSize = win32api.SendMessage(hld, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
+    # 利用api生成Buffer
+    strBuf = win32gui.PyMakeBuffer(bufSize)
+
+    print(strBuf)
+    # 发送消息获取文本内容
+    # 参数：窗口句柄； 消息类型；文本大小； 存储位置
+    length = win32gui.SendMessage(hld, win32con.WM_GETTEXT, bufSize, strBuf)
+    # 反向内容，转为字符串
+    # text = str(strBuf[:-1])
+
+    address, length = win32gui.PyGetBufferAddressAndLen(strBuf)
+    text = win32gui.PyGetString(address, length)
+    print('text: ', text)
+    return text.encode().decode('UTF-8', 'ignore').strip().strip(b'\x00'.decode())
+
+
+def get_license_key(cid):
+    ip = get_host_ip()
+    if ip.startswith('192'):
+        url = 'http://192.168.11.94:5000/licensekey/{}'.format(cid)
+    else:
+        # url = 'http://100.94.254.231:5000/licensekey/{}'.format(cid)
+        url = 'http://10.120.173.29:5000/licensekey/{}'.format(cid)
+    print('-' * 40)
+    print('Is in the request...')
+    print(url)
+    # req = requests.get(url)
+    # data_str = req.text
+    # print(data_str)
+    # license_dict = json.loads(data_str)
+    req = urllib.request.urlopen(url)
+    data_str = req.read().decode()
+    license_dict = json.loads(data_str)
+    if 'fail' == license_dict.get('result'):
+        print('Request Web service failure!!!!')
+        sleep(4)
+        return
+    license_key_number = license_dict.get('license_id')
+    print(license_key_number)
+    print('get license key number successful')
+    return license_key_number
+
+
+def edit_uv4():
+    try:
+        # 关闭可能存在的进程
+        kill_task = 'TASKKILL /F /IM UV4.exe'
+        kill_status = os.system(kill_task)
+
+        # 启动软件
+        # start_path = r'‪C:\buildtools\Keil_v5\UV4\UV4.exe'
+        start_path = get_UV4_root_path()
+        subprocess.Popen(start_path, shell=True)
+        sleep(5)
+
+        retry = 5
+        while retry > 0:
+            retry -= 1
+            # 获得父容器
+            pHwnd = win32gui.FindWindow(None, 'μVision')
+            if pHwnd:
+                break
+        # w2hd = win32gui.FindWindowEx(pHwnd, None, None, None)
+
+        # win32gui.ShowWindow(pHwnd, win32con.SW_HIDE)
+        # 获取窗口焦点，单独使用SetForegroundWindow会报错
+        try:
+            sleep(2)
+            win32gui.ShowWindow(pHwnd, win32con.SW_SHOW)
+            shell = win32com.client.Dispatch('WScript.Shell')
+            shell.Sendkeys('%')
+            sleep(0.05)
+
+            # 机器恢复环境以后，可能存在上面的代码没有生效，窗口没有显示在最前面
+            # 生成软件位置
+            left, top, right, bottom = win32gui.GetWindowRect(pHwnd)
+            # 为鼠标焦点设定一个位置
+            win32api.SetCursorPos((left + 5, top + 5))
+            # 鼠标左键点击两次
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+            sleep(0.05)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+            sleep(0.1)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+            sleep(0.05)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+
+            win32gui.SetForegroundWindow(pHwnd)
+            sleep(1)
+        except Exception as e:
+            print(e.args)
+            print(traceback.format_exc())
+        # 防止未聚焦成功，再次点击~~~
+        # 软件位置
+        left, top, right, bottom = win32gui.GetWindowRect(pHwnd)
+        # 为鼠标焦点设定一个位置
+        win32api.SetCursorPos((left + 5, top + 5))
+        # 鼠标左键点击两次
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        sleep(0.05)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+
+        sleep(0.1)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        sleep(0.05)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        sleep(1)
+
+        # 快捷键Alt+F
+        win32api.keybd_event(18, 0, 0, 0)  # Alt
+        sleep(0.05)
+        win32api.keybd_event(70, 0, 0, 0)  # F
+        sleep(0.05)
+        win32api.keybd_event(77, 0, 0, 0)  # M
+        sleep(0.05)
+        win32api.keybd_event(70, 0, win32con.KEYEVENTF_KEYUP, 0)  # 释放按键
+        sleep(0.05)
+        win32api.keybd_event(77, 0, win32con.KEYEVENTF_KEYUP, 0)
+        sleep(0.05)
+        win32api.keybd_event(18, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+        sleep(2)
+        # 获取对话框License Manage
+        license_manage_hd = win32gui.FindWindow('#32770', 'License Management')
+        license_manage_hd1 = win32gui.FindWindowEx(license_manage_hd, None, None, None)
+        if license_manage_hd:
+            print('对话框License Manage获取成功')
+
+        # 获取CID的文本值
+        # CID_Edit_ID:1192
+        CID_edit_id = 1192
+        print('CID_Edit_ID:1192')
+        cid_edit_hd = win32gui.GetDlgItem(license_manage_hd1, CID_edit_id)
+        cid = get_cid(cid_edit_hd)
+
+        # 添加license_key_number
+        # License_id_code_ID:1741
+        License_id_code_id = 1741
+        print('License_id_code_ID:1741')
+        license_id_code_hd = win32gui.GetDlgItem(license_manage_hd1, License_id_code_id)
+        license_key_number = get_license_key(cid)
+        win32api.SendMessage(license_id_code_hd, win32con.WM_SETTEXT, None, license_key_number)
+        sleep(2)
+
+        # 点击添加按钮
+        # add_lic_button_ID:1223
+        # add_lic_hd = win32gui.GetDlgItem(license_manage_hd1, 1223)
+        add_lic_button_id = 1223
+        print('add_lic_button_ID:1223')
+        win = win32ui.FindWindow('#32770', 'License Management')
+        win1 = win32ui.FindWindowEx(win, None, None, None)
+        gen_button = win1.GetDlgItem(add_lic_button_id)
+        gen_button.PostMessage(win32con.BM_CLICK)
+        print('license add successful')
+        sleep(2)
+
+        # 操作完成，关闭进程
+        kill_task = 'TASKKILL /F /IM UV4.exe'
+        kill_status = os.system(kill_task)
+
+        # 关闭文件
+        sys.stdout.close()
+        sys.stderr.close()
+
+        # 恢复默认标准输出和错误输出
+        sys.stdout = standard_output
+        sys.stderr = standard_error
+        # menu_bar_hd = win32gui.GetDlgItem(pHwnd, 59398)
+        # menu = win32gui.GetMenu(pHwnd)
+        # menu1 = win32gui.GetSubMenu(menu, 1)  # 第几个菜单
+        # cmd_ID = win32gui.GetMenuItemID(menu1, 1)  # 第几个子菜单
+        # win32gui.PostMessage(pHwnd, win32con.WM_COMMAND, cmd_ID, 0)
+
+        # # 关闭窗体
+        # sleep(2)
+        # wnd=win32ui.FindWindow('Keygen', None)
+        # wnd.SendMessage(win32con.WM_CLOSE)
+    except Exception as e:
+        print(e.args)
+        print(traceback.format_exc())
+        sleep(3)
+        return ''
+
+    finally:
+        # 关闭文件
+        sys.stdout.close()
+        sys.stderr.close()
+
+        # 恢复默认标准输出和错误输出
+        sys.stdout = standard_output
+        sys.stderr = standard_error
+
+
+if __name__ == '__main__':
+    edit_uv4()
