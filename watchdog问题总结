@@ -1,0 +1,62 @@
+watchdog用来监控指定目录/文件的变化，如添加删除文件或目录、修改文件内容、重命名文件或目录等，每种变化都会产生一个事件，且有一个特定的事件类与之对应，然后再通过事件处理类来处理对应的事件，怎么样处理事件完全可以自定义，只需继承事件处理类的基类并重写对应实例方法。
+
+文件的操作触发的对应事件：
+
+1、文件的创建(Create)操作:文件发生创建的时候触发Create事件。
+
+              文件创建的过程如下：
+
+                      1、创建一个空文件(Create事件)
+
+                      2、修改文件的访问时间和修改时间为当前操作时间(Modified事件)(应该是在空文件中写入文件)
+
+
+
+              文件复制的文件过程如下(文件复制后文件的修改时间和原文件的修改时间一致(XCopy、Copy),python的shutil模块复制时会完全新建一个文件)：
+
+                      1、创建一个文件内容和源文件内容一致的文件(Create事件)(修改时间、访问时间、创建时间都为当前操作时间)
+
+                      2、修改复制文件的修改时间为原文件的修改时间(Modified事件)
+
+                      3、修改原文件的访问时间为当前操作时间(触发Modified事件) ，此时的原文件访问时间、复制文件的访问时间、创建时间一致，原文件的修改时间、复制文件的修改时间一致
+
+                                                
+
+3、文件的删除(Delete)操作:当文件发生删除的时候会触发Delete事件。
+
+4、文件的修改(Modified)操作:当文件发生修改时触发该事件(修改文件内容、修改文件inode信息如权限和访问时间，都会触发该事件)
+
+            注意：当你的LastAccessTime的更新的为关闭的时候，文件被复制、被访问(打开、读取)时，文件的访问时间不会发生改变。
+
+
+            使用命令查询当前系统是否关闭了LastAccessTime的更新(1 表示关闭，0表示开启)：
+
+                    fsutil behavior query disablelastaccess                                                      
+
+
+            关闭LastAccessTime的更新:
+
+                    fsutil behavior set disablelastaccess 1     
+
+           打开LastAccessTime的更新:
+
+                    fsutil behavior set disablelastaccess 0
+
+           注意：需要重启。
+5、文件进行重命名操作：当文件发生重命名时触发move事件(其他触发动作尚未发现)。
+            注意：文件的移动和复制并不会触发move事件，文件的复制和移动时发生如下操作：
+                    文件复制：
+
+                    2019-02-21 12:17:15,661 - Created file: D:\test_project\tttt\77777.bat
+                    2019-02-21 12:17:15,677 - Modified directory: D:\test_project\tttt
+                    2019-02-21 12:17:15,677 - Modified file: D:\test_project\tttt\77777.bat
+                    2019-02-21 12:17:15,677 - Modified file: D:\test_project\t\77777.bat
+
+                    文件移动：
+
+                    2019-02-21 16:07:29,851 - Deleted file: D:\test_project\1.txt
+
+                    2019-02-21 16:07:29,851 - Created file: D:\test_project\tttt\1.txt
+
+                    2019-02-21 16:07:29,851 - Modified directory: D:\test_project\tttt
+                    2019-02-21 16:07:29,851 - Modified file: D:\test_project\tttt\1.txt
