@@ -1,0 +1,38 @@
+问题描述：当使用paramiko远程执行Git指令时，如果远程机器上安装有多个Git版本，当你远程执行Git命令后，命令不一定会按照你配置的环境变量的顺序来执行，具体可以通过远程执行git --version来检查远程调用指令使用的是哪个Git版本。
+
+解决办法：
+
+1、删除不需要的Git版本，只留下想要使用的Git版本即可。
+
+2、重启你的远程机器，重启以后paramiko模块会按照远程机器配置的环境变量去执行Git指令。
+
+
+因为项目的需要，使用了pywinauto实现自动化操作软件，但是在使用的时候发现了一些不能理解的问题。
+
+1、代码开发完成以后使用pyinstaller进行打包，打包后的可执行文件在机器上手动执行能正常运行，但跑构建时在远程使用代码在执行机上创建了一个定时任务去启动可执行文件不成功，定位发现是在导入pywinauto时报错。最后是使用源码执行暂时解决的问题
+
+2、在使用apache+mod_wsgi进行部署时，如果项目中存在导入pywinauto的操作，那么请求这个服务的时候，请求会一直挂住。
+    补充：后面测试发现，import win32ui的时候也会发生一样的情况。
+
+
+# 在第三方平台(rdo连接的windows服务器)上使用SetForegroundWindow获取窗口焦点时，必须像以下这样使用，不能单独使用
+# win32gui.ShowWindow(pHwnd, win32con.SW_HIDE)
+# 获取窗口焦点，单独使用SetForegroundWindow会报错
+win32gui.ShowWindow(w2hd, win32con.SW_SHOW)
+shell = win32com.client.Dispatch('WScript.Shell')
+shell.Sendkeys('%')
+win32gui.SetForegroundWindow(w2hd)
+sleep(1)
+
+# 使用快捷键的时候，不能一次性释放，需要休眠(不知道啥原理)
+# 快捷键Alt+F
+win32api.keybd_event(18, 0, 0, 0) # Alt
+win32api.keybd_event(70, 0, 0, 0) # F
+win32api.keybd_event(77, 0, 0, 0) # M
+win32api.keybd_event(70, 0, win32con.KEYEVENTF_KEYUP, 0) # 释放按键
+win32api.keybd_event(77, 0, win32con.KEYEVENTF_KEYUP, 0)
+sleep(2)
+win32api.keybd_event(18, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+
+使用apache+mod_wsgi以后不能使用subprocess打开软件，开发服务器则不会存在这个情况~
