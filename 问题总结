@@ -29,3 +29,10 @@ redis做缓存如何更新数据：
 https://blog.csdn.net/zzh920625/article/details/78027534
 
 先更新数据库，删除缓存(出现数据不一致的情况：读操作再写操作之前，并且读操作再写操作后完成，基本不可能，以为写操作一般比读操作完成，推荐此种方式)
+
+
+flask做前后端分离，解决跨域问题：
+from flask_cors import CORS
+
+# 解决跨域问题
+CORS(app, resources={"/*": {"origins":"*"}})
