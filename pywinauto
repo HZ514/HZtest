@@ -1,0 +1,264 @@
+import sys
+
+"""
+远程调用有bug
+
+requirements.txt
+
+altgraph==0.16.1
+argh==0.26.2
+certifi==2018.11.29
+chardet==3.0.4
+comtypes==1.1.7
+docutils==0.14
+future==0.17.1
+idna==2.8
+jieba==0.39
+macholib==1.11
+pathtools==0.1.2
+pefile==2019.4.18
+Pillow==6.0.0
+PyAutoGUI==0.9.42
+PyGetWindow==0.0.5
+PyInstaller==3.4
+PyMsgBox==1.0.6
+pypiwin32==223
+PyRect==0.1.4
+PyScreeze==0.1.21
+PyTweening==1.0.3
+pytz==2018.7
+pywin32==224
+pywin32-ctypes==0.2.0
+pywinauto==0.6.6
+PyYAML==5.1
+requests==2.21.0
+six==1.12.0
+suds-py3==1.3.3.0
+urllib3==1.24.1
+
+"""
+
+# 备份默认的标准输出和错误输出
+standard_output = sys.stdout
+standard_error = sys.stderr
+
+# sys.stdout = open('output.log', "w+")
+# sys.stderr = open('error.log', 'w+')
+
+import requests
+import json
+from pywinauto.application import Application
+import pywinauto
+from time import sleep
+import subprocess
+import traceback
+import time
+from winreg import *
+
+from win32con import WM_INPUTLANGCHANGEREQUEST
+import win32gui
+import win32api
+
+# import signal
+
+
+# 通过句柄获取对应控件的文本值
+def get_cid(hld):
+    import win32api, win32gui, win32con
+    # label = 'License Management'  # 主窗口名
+    # # 找到父窗口
+    # hld = win32gui.FindWindow('#32770', label)
+
+    # 获取窗口文本不含截尾空字符的长度
+    # 参数：窗口句柄； 消息类型； 参数WParam； 参数IParam
+    bufSize = win32api.SendMessage(hld, win32con.WM_GETTEXTLENGTH, 0, 0) + 1
+    # 利用api生成Buffer
+    strBuf = win32gui.PyMakeBuffer(bufSize)
+    print(strBuf)
+    # 发送消息获取文本内容
+    # 参数：窗口句柄； 消息类型；文本大小； 存储位置
+    length = win32gui.SendMessage(hld, win32con.WM_GETTEXT, bufSize, strBuf)
+    # 反向内容，转为字符串
+    # text = str(strBuf[:-1])
+
+    address, length = win32gui.PyGetBufferAddressAndLen(strBuf)
+    text = win32gui.PyGetString(address, length)
+    print('text: ', text)
+    return text
+
+
+def set_keyboard_ayout():
+    # set keyboard layout
+    # 设置键盘布局
+
+    # 语言代码
+    # https://msdn.microsoft.com/en-us/library/cc233982.aspx
+    LID = {0x0804: "Chinese (Simplified) (People's Republic of China)",
+           0x0409: 'English (United States)'}
+
+    # 获取前景窗口句柄
+    hwnd = win32gui.GetForegroundWindow()
+
+    # 获取前景窗口标题
+    title = win32gui.GetWindowText(hwnd)
+    print('当前窗口：' + title)
+
+    # 获取键盘布局列表
+    im_list = win32api.GetKeyboardLayoutList()
+    im_list = list(map(hex, im_list))
+    print(im_list)
+
+    # 设置键盘布局为英文
+    result = win32api.SendMessage(
+        hwnd,
+        WM_INPUTLANGCHANGEREQUEST,
+        0,
+        0x0409)
+    if result == 0:
+        print('设置英文键盘成功！')
+
+
+def get_UV4_root_path():
+    # aReg = ConnectRegistry(None, HKEY_CLASSES_ROOT)
+    aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
+    # aReg = ConnectRegistry(None, HKEY_USERS)
+
+    aKey = OpenKey(aReg, r"SYSTEM\ControlSet001\Control\Session Manager\Environment")
+    # aKey = OpenKey(aReg, r"S-1-5-21-147214757-305610072-1517763936-6109270\Software\Microsoft\Windows\CurrentVersion\Run")
+    # aKey = OpenKey(aReg, r"Unity scene file")
+
+    # value = QueryValueEx(aKey, "YodaoDict")
+    value = QueryValueEx(aKey, "UV4")
+
+    substring = '\\'.join([value[0], 'UV4.exe'])
+    print(substring)
+    return substring
+
+
+def main():
+    try:
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # window server
+        # start_exe_cmd = r'C:\buildtools\Keil_v5\UV4\UV4.exe'
+        # window
+        # start_exe_cmd = r'D:\Dir\Keil_v5\Keil_v5\UV4\UV4.exe'
+        start_exe_cmd = get_UV4_root_path()
+        print("Open Keil Window...")
+        print('the path:' + start_exe_cmd)
+        # os.system('pause'
+        start_exe_process = subprocess.Popen(start_exe_cmd)
+        sleep(2)
+
+        retry = 5
+        while retry > 0:
+            retry -= 1
+            try:
+                # Access names : [u'\u03bcVision3', u'Afx:400000:8:10003:0:70895', u'\u03bcVision3Afx:400000:8:10003:0:70895']
+                try:
+                    app = Application(backend='uia').connect(path=start_exe_cmd, timeout=10)
+                    # app = Application().connect(path=start_exe_cmd, timeout=10)
+                except pywinauto.application.ProcessNotFoundError:
+                    app = Application(backend='uia').start(start_exe_cmd, timeout=10)
+                    # app = Application().start(start_exe_cmd, timeout=10)
+                afxa = app["μVision"]
+                sleep(1)
+                # 利用pywinauto实现
+                afxa.type_keys("%F")
+                afxa.type_keys("+")
+                afxa.type_keys("+M")
+                break
+            except Exception as e:
+                print(e.args)
+                print(traceback.format_exc())
+                time.sleep(3)
+        sleep(2)
+
+        # afxa.wait('ready')
+
+        # 设置英文按键
+        # set_keyboard_ayout()
+
+        # 利用pywinauto实现
+        # afxa['Toolbar'].Button(0).click()
+        # afxa.type_keys("+")
+        # afxa.type_keys("+M")
+
+        # 利用pyautigui实现
+        # pyautogui.keyDown('altleft')
+        # pyautogui.press('F')
+        # pyautogui.press('M')
+        # pyautogui.keyUp('altleft')
+
+        # print(pywinauto.findwindows.find_windows())
+
+        sleep(2)
+        print("Add License Window")
+        window_add_license = app.Dialog
+
+        # 获取license设置情况，如果license已经设置，则不需要再设置
+        ListItem_list = window_add_license.ListBox.ListItem.texts()
+        expires_str = ListItem_list[-1]
+        if expires_str:
+            print("The license has been set, don't need to set up")
+            app.kill()
+            return
+
+        # window_add_license.print_control_identifiers(filename='dialog.txt')
+        # computer_cid = window_add_license.Edit4.texts()
+
+        # 获取控件的10进制句柄
+        int_h = window_add_license.Edit4.wrapper_object()._as_parameter_
+        # 通过10进制的句柄，获取控件的文本值
+        cid_str = get_cid(int_h)
+        if not cid_str:
+            print('fail，没有获取到CID值')
+            return
+
+        # print(computer_cid)
+        # computer_cid = window_add_license.Edit4.Texts()
+        # computer_cid = afxa.Edit4.Texts()
+        sleep(2)
+
+        # ------------------------------------------------------------------------------------------------
+        # 通过CID获取license_key_number
+        # cid = 'CGZ23-2RCNS'
+        # cid = computer_cid[0]
+        print('Is requesting a Web server to obtain licensekey number......')
+        cid = cid_str
+        url = 'http://10.120.173.29:5000/licensekey/{}'.format(cid)
+        req = requests.get(url)
+        data_str = req.text
+        license_key_number = json.loads(data_str).get('license_id')
+        print(license_key_number)
+        print('get license key number successful')
+
+        # 将获取到的license_key_number添加到μVision
+        edit = window_add_license.Edit5
+        # print(edit.exists())
+        # edit.Click()
+        sleep(1)
+        edit.type_keys(license_key_number)
+        sleep(2)
+        button_add_lic = window_add_license.Button2
+        button_add_lic.click()
+        # window_add_license.print_control_identifiers(filename='end.txt')
+        # button = window_add_license.Close
+        button = window_add_license.Button6
+        button.click()
+        app.kill()
+        print('license add successful')
+    except Exception as e:
+        print(e.args)
+        print(traceback.format_exc())
+        time.sleep(3)
+
+
+if __name__ == '__main__':
+    main()
+    # 关闭文件
+    # sys.stdout.close()
+    # sys.stderr.close()
+    #
+    # # 恢复默认标准输出和错误输出
+    # sys.stdout = standard_output
+    # sys.stderr = standard_error
