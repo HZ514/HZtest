@@ -1,0 +1,196 @@
+
+将jenkins.war包放在Tocmat下，就可以通过http://localhost:8080/jenkins访问，如果仅将Tomcat作为jenkins服务器使用，可以将ROOT目录删除，将jenkins.war包修改问ROOT.war，
+如果Tomcat启动不了，有可能是你的Tomcat端口被占用了，可以将占用端口的服务关闭https://www.cnblogs.com/phonecom/p/7543877.html；也可以修改Tomcat服务端口号。
+例如：修改D:\Tomcat1\apache-tomcat-8.5.15\conf\server.xml文件，
+<Connector port="端口号" protocol="HTTP/1.1"
+connectionTimeout="20000"
+redirectPort="8443" URIEncoding="UTF-8"/>
+
+Tomcat tomcat_users.xml配置实例:
+ <tomcat-users>
+<role rolename="manager-gui"/>
+<role rolename="manager-script"/>
+<role rolename="manager-jml"/>
+<role rolename="manager-status"/>
+<user username="tomcat_user" password='tomcat' roles="manager-gui,manager-script,manager-jml,manager-status">
+<user username="tomcat" password="tomcat" roles="manager-gui"/>
+<user username="admin" password="123456" roles="manager-script"/>
+</tomcat-users>
+一个user节点表示单个用户，属性username和password分别表示登录的用户名和密码，属性roles
+表示该用户所具备的权限。
+
+manager-gui
+允许访问html接口(即URL路径为/manager/html/*)
+manager-script
+允许访问纯文本接口(即URL路径为/manager/text/*)
+manager-jmx
+允许访问JMX代理接口(即URL路径为/manager/jmxproxy/*)
+manager-status
+
+修改jenkins默认工作区间:
+Jenkins的默认工作空间是   用户名/.jenkins
+1.windows环境下更改默认工作空间
+
+        一、增加环境变量JENKINS_HOME，指向想要更改的Jenkins默认工作空间。比如，我想设置E:\jenkins为Jenkins的默认工作目录，那么在环境变量中，设置JENKINS_HOME为E:\jenkins。再重启jenkin即可。
+
+        二、修改\apache-tomcat-8.5.15\webapps\ROOT\WEB-INF\web.xml
+
+        <env-entry>
+            <env-entry-name>HUDSON_HOME</env-entry-name>
+            <env-entry-type>java.lang.String</env-entry-type>
+            <env-entry-value>目录(例如D:\jenkins1)</env-entry-value>
+        </env-entry>
+
+在一台windows上启动两个不同的jenkins服务：​
+
+       启动另外一个端口号不同的Tomcat服务，在按照启动第一个jenkins的步骤操作一次就可以了。
+
+       注意，如果没有修改jenkins的工作目录或者是通过JENKINS_HOME的方式修改的工作目录，则两个jenkins除了访问地址不一致，内容都是一致的(工作区间一致)。通过上述第二种方式修改工作目录，让两个jenkins的工作目录不一致。
+
+
+
+​
+Jenkins配置基于角色的项目权限管理：3ms.huawei.com/km/blogs/details/2448615?l=zh-cn
+Jenkins备份与还原:3ms.huawei.com/hi/group/2033815/wiki_4668153.html
+
+通过备份的jobs的cofig.xml文件生成job:
+
+下载jenkins-cli.jar - 在jenkins网页上，选择jenkins CLI - create-job下载
+
+在jenkins-cli目录运行以下命令:
+
+D:\>java -jar jenkins-cli.jar -s http://127.0.0.1:8080/ create-job --username xxx --password xxx test<D:\ThinBackup\FULL-2019-01-11_10-54\jobs\test\config.xml
+
+注意:如果使用了角色权限管理插件，必须将用户设置为admin
+
+构建:
+
+普通构建完成的文件是存放在jenkins根目录的workspace下
+
+maven打包的jar放在target目录下，vue打包的生成的是dist文件夹放在根目录下
+
+
+
+
+使用jenkins创建项目时发现没有构建maven项目这个选项解决方案:
+解决:安装Maven Integration plugin插件即可
+
+
+预警:It appears that your reverse proxy set up is broken(看来你的反向代理设置被打破了)
+
+解决:
+
+        确保用于访问jenkins的URL和设置Jenkins URL相同。
+
+对于前者 我通过浏览器访问我的jenkins http://example.com所以我将我的Jenkins URL设置为http://example.com。例如，如果将其设置http://<IP_address>为您将看到报告的错误。
+
+
+
+安装插件错误以后，页面会显示报错信息，不处理的话错误信息会一直存在，再次安装此插件时可能有提示插件已经安装，此时可以在jenkins目录的插件目录例如：D:\jenkins\plugins下对应插件的数据删除，包括一个插件名的文件夹和一个插件名.jpi文件，有时还会有插件名.bak文件，同样要删除
+
+
+
+
+
+
+问题:在Windows 7中从Tomcat部署Jenkins，添加参数JENKINS_JAVA_OPTIONS。
+
+java起war包的话后面跟上参数-Dhudson.model.DownloadService.noSignatureCheck=true -Djava.awt.headless=true 
+
+
+解决:在tomcat\bin创建setenv.bat，并加入这一行：
+
+     set JAVA_OPTS=-Dhudson.model.DownloadService.noSignatureCheck=true -Djava.awt.headless=true
+Linux下见：http://3ms.huawei.com/km/blogs/details/5360477
+
+关于添加视图view:如果是直接在首页添加的视图，那在默认页面就能看到添加的视图
+如果是在My views中添加的视图，则需要进入My views中才能看到
+
+注意：job执行pipeline定义，可以有两种方式，一种直接在job填写pipeline script来执行, 
+一种是使用pipeline script from SCM。
+
+pipeline script：直接在Script输入框里面输入pipeline script语句即可，参考说明可以点击输入框下边的Pipeline Syntax，里面有很多示例操作说明，非常好用。
+pipeline script from SCM：需要配置SCM代码存储Git地址或SVN地址，指定script文件所在路径，每次构建job会自动去指定的目录执行script文件。
+
+pipeline语法中，删除工作区间：
+        解决方案：方法deleteDir()
+        案例：steps{
+                      script{
+                          echo "ls -al ${env.WORKSPACE}"
+                          deleteDir() // clean up current work directory
+                          echo "ls -al ${env.WORKSPACE}"
+                                }
+                        }
+pipeline中调用其他job:
+例子:
+Scripted Pipeline语法
+其中test_pipeline是其他job的名称
+node { 
+stage('Build') { 
+        build 'test_pipeline'
+     }
+}
+Declarative Pipeline语法:
+pipeline {
+agent any
+stages {
+    stage('Build') { 
+        steps {
+            echo "${env.WORKSPACE}"
+            bat 'set workspace=${env.WORKSPACE}'
+            bat '''cd /d D:\\test_task\\codebin\\windows
+            codebin.exe -o scan -p %workspace% -s a'''
+            build 'test_pipeline' 
+            }
+        }
+    }
+}
+
+build 'FastBuildElements/Client18BFast' - 推测是执行其他节点下的job，没有进行测试
+
+
+关于从svn或者git中拉取代码，我们可以通过Pipeline Syntax来生成。Pipeline Syntax算是一个很全的文档，通过Pipeline Syntax可以生成任何pipeline代码
+
+进入正题：从svn上拉取代码
+
+第一步点击Pipeline Syntax
+第二步：选择checkOut：GenericScm
+
+第三步：填写url、选择身份验证（svn的账号密码）、选择本地地址、是否清楚工作区间等
+最后点击生成代码
+
+
+jenkins在pipeline中并行执行任务:
+注意:在使用并行执行任务的时候，如果涉及拉取代码等构建，则要求并行的任务必须在不同的agent上，否则不能正常运行.
+
+Jenkins可用环境变量以及使用方法：https://blog.csdn.net/zbj18314469395/article/details/79755985
+先说一下变量的使用方法
+下面的环境变量可以在配置Jenkins Job的时候用得到，可以用在Execute shell、Execute Windows batch command、文本框 上加上编辑好的的shell脚本
+Windows：%BUILD_NUMBER%        %变量名%
+Linux：${BUILD_NUMBER} ，也可以直接使用$BUILD_NUMBER
+倘若是自己定义的参数化（Parameter）在调用时可以直接 用 $参数名，比如调用这个时直接 $endPoint
+
+在Maven或者Ant中使用（参考 Jenkins内置环境变量的使用  和 Jenkins进阶）
+Maven：直接使用：${env.WORKSPACE} 
+Ant：需要增加<property environment="env"/>节点，再使用${env.WORKSPACE}
+
+
+jenkin控制台输出页面如果有太多输出将会导致构建卡住。  
+解决办法：
+1、减少构建脚本的输出
+2、将构建输出重定向到文件。 t1.exe > 1.txt
+
+
+
+
+在jenkins工程中通过start启动了异步任务，但是工程结束后异步进程被被杀死。
+解决：
+jenkins工程会在工程结束后会自动杀死衍生进程，jenkisn是通过BUILD_ID识别衍生进程，所以修改BUILD_ID即可。
+windows:
+
+
+linux修改为export BUILD_ID=asdfasdf即可。
+
+
+multijob插件的使用：http://3ms.huawei.com/km/blogs/details/2503757#preview_attachment_box_2503757
+补充：多个multijob之间串行执行，multijob之间的子工程可以串行或者并行执行，这个设置串行执行子工程并不会按照配置的你配置的顺序执行，是随机串行执行。
