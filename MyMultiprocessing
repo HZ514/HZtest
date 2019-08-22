@@ -1,0 +1,34 @@
+import os
+import multiprocessing
+from multiprocessing import Pool, Manager
+
+
+def test(chr, queue):
+    print('子进程启动:{}'.format(os.getpid()))
+    # manage_dict[chr] = chr
+    print(chr)
+    queue.put(chr)
+    print('子进程结束:{}'.format(os.getpid()))
+
+
+def main():
+    queue = Manager().Queue()
+    # manage_dict = manage.dict()
+    # 默认是cpu核心数
+
+    p = Pool()
+    for chr in ['A', 'B', 'C']:
+        p.apply_async(test, args=(chr, queue))
+    p.close()
+    p.join()
+    while not queue.empty():
+        print('queue get {}'.format(queue.get()))
+    # print(manage_dict.values())
+    print('父进程结束{}'.format(os.getpid()))
+
+
+if __name__ == '__main__':
+    print('父进程启动{}'.format(os.getpid()))
+    # multiprocessing.freeze_support()
+    main()
+
