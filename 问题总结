@@ -36,3 +36,15 @@ from flask_cors import CORS
 
 # 解决跨域问题
 CORS(app, resources={"/*": {"origins":"*"}})
+
+
+python关于文件的删除操作:
+删除文件可以使用os模块和shutil模块
+
+删除单个文件：os.remove(file_path)、os.unlink(file_path)
+区别：第二个删除正在使用的文件会报错。
+注意点：remove()只能删除文件，删除文件夹会因为权限问题报错。
+
+删除文件夹：
+1、os.rmdir(dir_path)    注意点：只能删除空文件夹
+2、shutil.rmtree(dir_path)  # 递归删除目录
